@@ -2,7 +2,7 @@
 # Boughtsafe API and sync worker. Build from the repository root:
 #   docker build -f server/Dockerfile -t boughtsafe-api .
 
-FROM --platform=$BUILDPLATFORM python:3.13-slim AS build
+FROM --platform=$BUILDPLATFORM python:3.15-slim AS build
 WORKDIR /src
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY server/pyproject.toml server/README.md server/alembic.ini ./
@@ -11,7 +11,7 @@ COPY server/boughtsafe ./boughtsafe
 # installs its dependencies itself in the final stage.
 RUN pip wheel --no-deps --wheel-dir /wheels .
 
-FROM python:3.13-slim
+FROM python:3.15-slim
 ARG VERSION=0.0.0
 ARG BUILD_NUMBER=dev
 ARG GIT_SHA=local
