@@ -23,14 +23,14 @@
 	},
 	"dependencies": {
 		"@lucide/svelte": "^1.75.0",
-		"@zxing/browser": "^0.1.5",
-		"@zxing/library": "^0.21.3",
+		"@zxing/browser": "^0.2.1",
+		"@zxing/library": "^0.23.0",
 		"idb": "^8.0.3",
 		"tesseract.js": "^7.0.0"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.0",
-		"@playwright/test": "1.63.0",
+		"@playwright/test": "1.65.1",
 		"@sveltejs/adapter-static": "^3.0.11",
 		"@sveltejs/kit": "^2.70.0",
 		"@sveltejs/vite-plugin-svelte": "^6.2.0",
