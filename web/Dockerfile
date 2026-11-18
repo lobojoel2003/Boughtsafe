@@ -14,7 +14,7 @@ ARG GIT_SHA=local
 ENV BUILD_NUMBER=${BUILD_NUMBER} GIT_SHA=${GIT_SHA}
 RUN cd web && npx svelte-kit sync && npm run build
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 ARG VERSION=0.0.0
 ARG BUILD_NUMBER=dev
 ARG GIT_SHA=local
