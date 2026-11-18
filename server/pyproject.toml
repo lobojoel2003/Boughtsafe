@@ -1,0 +1,97 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "boughtsafe"
+version = "1.0.0"
+description = "Mirror FDA, USDA FSIS and CPSC recall feeds and match them to what you actually bought."
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+requires-python = ">=3.11"
+authors = [{ name = "Joel Stain Lobo" }]
+keywords = ["recalls", "food-safety", "fda", "usda", "cpsc", "upc", "food-pantry"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Framework :: FastAPI",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Utilities",
+]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.32",
+  "sqlalchemy>=2.0.36,<3",
+  "alembic>=1.14",
+  "psycopg[binary]>=3.2",
+  "pydantic>=2.9,<3",
+  "pydantic-settings>=2.6",
+  "httpx>=0.28",
+  "rapidfuzz>=3.10",
+  "pywebpush>=2.0",
+  "py-vapid>=1.9",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "respx>=0.22",
+  "ruff>=0.8",
+  "mypy>=1.13",
+]
+
+[project.scripts]
+boughtsafe = "boughtsafe.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/lobojoel2003/Boughtsafe"
+Issues = "https://github.com/lobojoel2003/Boughtsafe/issues"
+Changelog = "https://github.com/lobojoel2003/Boughtsafe/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["boughtsafe"]
+
+[tool.hatch.build.targets.sdist]
+include = ["boughtsafe", "alembic.ini", "README.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S", "C4", "PT"]
+ignore = ["S101", "B008", "RUF012", "SIM905"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "PT011", "PT018", "E501"]
+"boughtsafe/migrations/**" = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["boughtsafe"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+filterwarnings = [
+  "error::DeprecationWarning:boughtsafe.*",
+  "ignore:Using `httpx` with `starlette.testclient`",
+]
+
+[tool.coverage.run]
+source = ["boughtsafe"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
