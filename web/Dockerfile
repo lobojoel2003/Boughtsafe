@@ -3,7 +3,7 @@
 # Build from the repository root:
 #   docker build -f web/Dockerfile -t boughtsafe-web .
 
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:26-alpine AS build
 WORKDIR /src
 COPY VERSION ./
 COPY web/package.json web/package-lock.json ./web/
