@@ -1,0 +1,54 @@
+# Rendered by the nginx image at start-up: ${API_UPSTREAM} comes from the environment.
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    server_tokens off;
+    gzip_static on;
+    include /etc/nginx/snippets/security-headers.conf;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # The API. Purchases pass through here only for the length of a match request.
+    location /api/ {
+        proxy_pass ${API_UPSTREAM}/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+        client_max_body_size 4m;
+        access_log off;
+    }
+
+    # Fingerprinted build output never changes.
+    location /_app/immutable/ {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    location = /service-worker.js {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location = /manifest.webmanifest {
+        include /etc/nginx/snippets/security-headers.conf;
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    # Single-page app: every route falls back to index.html.
+    location / {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri $uri/ /index.html;
+    }
+}

@@ -1,0 +1,31 @@
+name: Bug report
+description: Something doesn't work, or a recall matched (or didn't match) when it should have.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include the recall number or notice link if a match was wrong. Please don't paste your full purchase history.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: input
+    id: version
+    attributes:
+      label: Version and build
+      description: Settings → About shows both, e.g. "1.0.0 · build 42".
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where
+      options: [Android, iPhone / iPad, Desktop browser, Self-hosted server]

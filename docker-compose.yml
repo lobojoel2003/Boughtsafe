@@ -1,0 +1,69 @@
+# Boughtsafe, self-hosted: Postgres, the API, the hourly sync worker and the web app.
+#   cp .env.example .env    # then fill in VAPID keys for push alerts (optional)
+#   docker compose up -d    # web app on http://localhost:8080
+name: boughtsafe
+
+x-api-env: &api-env
+  BOUGHTSAFE_DATABASE_URL: postgresql+psycopg://boughtsafe:${POSTGRES_PASSWORD:-boughtsafe}@db:5432/boughtsafe
+  BOUGHTSAFE_CORS_ORIGINS: '["http://localhost:8080"]'
+  BOUGHTSAFE_OPENFDA_API_KEY: ${OPENFDA_API_KEY:-}
+  BOUGHTSAFE_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+  BOUGHTSAFE_VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+  BOUGHTSAFE_VAPID_SUBJECT: ${VAPID_SUBJECT:-https://github.com/lobojoel2003/Boughtsafe}
+  BOUGHTSAFE_SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-60}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: boughtsafe
+      POSTGRES_USER: boughtsafe
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-boughtsafe}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U boughtsafe -d boughtsafe"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    image: ghcr.io/lobojoel2003/boughtsafe-api:${BOUGHTSAFE_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    command: ["serve"] # applies migrations, then serves on :8000
+    environment: *api-env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    image: ghcr.io/lobojoel2003/boughtsafe-api:${BOUGHTSAFE_VERSION:-latest}
+    restart: unless-stopped
+    command: ["sync", "--loop"]
+    environment: *api-env
+    healthcheck:
+      disable: true
+    depends_on:
+      api:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/lobojoel2003/boughtsafe-web:${BOUGHTSAFE_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    restart: unless-stopped
+    environment:
+      API_UPSTREAM: http://api:8000
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:

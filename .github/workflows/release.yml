@@ -1,0 +1,216 @@
+# Publishes a release when a new VERSION lands on main and CI is green.
+#
+#   scripts/version.sh bump minor   # edits VERSION, pyproject, package.json, CHANGELOG
+#   git commit -am "Release 1.1.0" && git push   (to main, or merge a PR)
+#
+# CI runs; when it passes this workflow tags vX.Y.Z, builds the Python wheel,
+# the web bundle and multi-arch Docker images, and publishes a GitHub Release
+# with notes from CHANGELOG.md. It can also be started by hand.
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Decide
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
+      sha: ${{ steps.check.outputs.sha }}
+      build: ${{ steps.check.outputs.build }}
+      prerelease: ${{ steps.check.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - id: check
+        env:
+          BUILD: ${{ github.event.workflow_run.run_number || github.run_number }}
+        run: |
+          scripts/version.sh check
+          version=$(tr -d '[:space:]' < VERSION)
+          tag="v$version"
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "sha=$(git rev-parse HEAD)"
+            echo "build=$BUILD"
+            [[ $version == *-* ]] && echo "prerelease=true" || echo "prerelease=false"
+          } >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$tag already exists; nothing to release."
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Releasing $tag (build $BUILD)"
+          fi
+
+  artifacts:
+    name: Build artifacts
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      BUILD_NUMBER: ${{ needs.prepare.outputs.build }}
+      GIT_SHA: ${{ needs.prepare.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Python wheel and sdist
+        working-directory: server
+        run: |
+          python -m pip install build
+          python -m build --outdir ../dist
+      - name: Web bundle
+        working-directory: web
+        run: |
+          npm ci
+          npx svelte-kit sync
+          npm run build
+          tar -czf "../dist/boughtsafe-web-$VERSION.tar.gz" -C build .
+      - name: Build info and checksums
+        working-directory: dist
+        run: |
+          cat > "BUILD-INFO.txt" <<INFO
+          Boughtsafe $VERSION
+          Build:  $BUILD_NUMBER
+          Commit: $GIT_SHA
+          Date:   $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          INFO
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-dist
+          path: dist/
+
+  images:
+    name: Publish ${{ matrix.image }} image
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        image: [api, web]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image name
+        id: name
+        run: echo "repo=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/boughtsafe-${{ matrix.image }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ${{ steps.name.outputs.repo }}
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare.outputs.version }},enable=${{ needs.prepare.outputs.prerelease == 'false' }}
+            type=semver,pattern={{major}},value=${{ needs.prepare.outputs.version }},enable=${{ needs.prepare.outputs.prerelease == 'false' }}
+            type=raw,value=latest,enable=${{ needs.prepare.outputs.prerelease == 'false' }}
+            type=raw,value=build-${{ needs.prepare.outputs.build }}
+            type=raw,value=sha-${{ needs.prepare.outputs.sha }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.image == 'api' && 'server' || 'web' }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.version }}
+            BUILD_NUMBER=${{ needs.prepare.outputs.build }}
+            GIT_SHA=${{ needs.prepare.outputs.sha }}
+          cache-from: type=gha,scope=release-${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.image }}
+
+  publish:
+    name: Tag and publish GitHub Release
+    needs: [prepare, artifacts, images]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      BUILD: ${{ needs.prepare.outputs.build }}
+      SHA: ${{ needs.prepare.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-dist
+          path: dist
+      - name: Release notes
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          {
+            scripts/changelog-section.sh "$VERSION"
+            echo
+            echo "---"
+            echo
+            echo "**Build** $BUILD · **Commit** \`${SHA:0:7}\`"
+            echo
+            echo "**Docker images** (linux/amd64, linux/arm64)"
+            echo
+            echo '```bash'
+            echo "docker pull ghcr.io/$owner/boughtsafe-api:$VERSION"
+            echo "docker pull ghcr.io/$owner/boughtsafe-web:$VERSION"
+            echo '```'
+            echo
+            echo "Verify downloads with \`sha256sum -c SHA256SUMS.txt\`."
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          target_commitish: ${{ needs.prepare.outputs.sha }}
+          name: Boughtsafe ${{ needs.prepare.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
+          make_latest: ${{ needs.prepare.outputs.prerelease == 'false' }}
+          files: dist/*
+          fail_on_unmatched_files: true
