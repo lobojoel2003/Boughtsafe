@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    # Dependabot branches are covered by their pull_request runs.
+    branches-ignore: ["dependabot/**"]
     tags-ignore: ["v*"]
   pull_request:
     branches: [main]
@@ -174,6 +175,7 @@ jobs:
         image: [api, web]
     steps:
       - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
       - name: Image name
         id: name
@@ -197,6 +199,8 @@ jobs:
         with:
           context: .
           file: ${{ matrix.image == 'api' && 'server' || 'web' }}/Dockerfile
+          # Same platforms as the release, so a broken arm64 build fails here first.
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

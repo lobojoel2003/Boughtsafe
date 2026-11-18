@@ -7,7 +7,9 @@ WORKDIR /src
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY server/pyproject.toml server/README.md server/alembic.ini ./
 COPY server/boughtsafe ./boughtsafe
-RUN pip wheel --wheel-dir /wheels .
+# Only Boughtsafe's own (pure-Python) wheel is built here; each target platform
+# installs its dependencies itself in the final stage.
+RUN pip wheel --no-deps --wheel-dir /wheels .
 
 FROM python:3.13-slim
 ARG VERSION=0.0.0
