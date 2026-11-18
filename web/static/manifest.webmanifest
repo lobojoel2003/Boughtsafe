@@ -1,0 +1,24 @@
+{
+	"name": "Boughtsafe",
+	"short_name": "Boughtsafe",
+	"description": "Recall alerts matched to what you actually bought. Silent until something you own is recalled.",
+	"id": "/",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "portrait",
+	"background_color": "#f6f4ee",
+	"theme_color": "#1e6a49",
+	"categories": ["food", "utilities", "lifestyle"],
+	"icons": [
+		{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+		{ "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+		{ "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+		{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+	],
+	"shortcuts": [
+		{ "name": "Scan a barcode", "url": "/add/scan", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+		{ "name": "Photograph a receipt", "url": "/add/receipt", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+		{ "name": "Pantry mode", "url": "/pantry", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+	]
+}
