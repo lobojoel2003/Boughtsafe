@@ -22,15 +22,15 @@
 		"screenshots": "SCREENSHOTS=1 playwright test tests/e2e/screenshots.spec.ts"
 	},
 	"dependencies": {
-		"@lucide/svelte": "^1.75.0",
-		"@zxing/browser": "^0.1.5",
-		"@zxing/library": "^0.21.3",
+		"@lucide/svelte": "^1.77.0",
+		"@zxing/browser": "^0.2.1",
+		"@zxing/library": "^0.23.0",
 		"idb": "^8.0.3",
 		"tesseract.js": "^7.0.0"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.0",
-		"@playwright/test": "1.63.0",
+		"@playwright/test": "1.65.1",
 		"@sveltejs/adapter-static": "^3.0.11",
 		"@sveltejs/kit": "^2.70.0",
 		"@sveltejs/vite-plugin-svelte": "^6.2.0",
@@ -43,7 +43,7 @@
 		"jsdom": "^26.0.0",
 		"prettier": "^3.10.0",
 		"prettier-plugin-svelte": "^3.5.0",
-		"svelte": "^5.58.0",
+		"svelte": "^5.59.1",
 		"svelte-check": "^4.7.0",
 		"typescript": "^5.9.0",
 		"typescript-eslint": "^8.73.0",
